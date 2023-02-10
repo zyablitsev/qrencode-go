@@ -26,42 +26,6 @@ func NewBitGrid(width, height int) *BitGrid {
 	return &BitGrid{newBoolBitGrid(width, height)}
 }
 
-/*
-type BitVector struct {
-	byteBitVector
-}
-
-type BitGrid struct {
-	byteBitGrid
-}
-
-func (v *BitVector) AppendBits(b BitVector) {
-	v.byteBitVector.AppendBits(b.byteBitVector)
-}
-
-func NewBitGrid(width, height int) *BitGrid {
-	return &BitGrid{newByteBitGrid(width, height)}
-}
-*/
-
-/*
-type BitVector struct {
-	uint32BitVector
-}
-
-type BitGrid struct {
-	uint32BitGrid
-}
-
-func (v *BitVector) AppendBits(b BitVector) {
-	v.uint32BitVector.AppendBits(b.uint32BitVector)
-}
-
-func NewBitGrid(width, height int) *BitGrid {
-	return &BitGrid{newUint32BitGrid(width, height)}
-}
-*/
-
 func (v *BitVector) String() string {
 	b := bytes.Buffer{}
 	for i, l := 0, v.Length(); i < l; i++ {
@@ -94,33 +58,73 @@ func (g *BitGrid) String() string {
 // Encode the Grid in ANSI escape sequences and set the background according
 // to the values in the BitGrid surrounded by a white frame
 func (g *BitGrid) TerminalOutput(w io.Writer) {
-	white := "\033[47m  \033[0m"
-	black := "\033[40m  \033[0m"
+	white := "\033[40;37;1m"
+	reset := "\033[0m"
+
+	empty := " "
+	lowhalf := "\342\226\204"
+	uphalf := "\342\226\200"
+	full := "\342\226\210"
+
 	newline := "\n"
 
-	w.Write([]byte(white))
-	for i := 0; i <= g.Width(); i++ {
-		w.Write([]byte(white))
+	invert := true
+	if invert {
+		empty, full = full, empty
+		lowhalf, uphalf = uphalf, lowhalf
 	}
-	w.Write([]byte(newline))
 
-	for i := 0; i < g.Height(); i++ {
+	margin := 2
+	width := g.Width() + margin*2
+	for y := 0; y < margin/2; y++ {
 		w.Write([]byte(white))
-		for j := 0; j < g.Width(); j++ {
-			if g.Get(j, i) {
-				w.Write([]byte(black))
-			} else {
-				w.Write([]byte(white))
-			}
+		for x := 0; x < width; x++ {
+			w.Write([]byte(empty))
 		}
-		w.Write([]byte(white))
+		w.Write([]byte(reset))
 		w.Write([]byte(newline))
 	}
-	w.Write([]byte(white))
-	for i := 0; i <= g.Width(); i++ {
+
+	for y := 0; y < g.Height(); y += 2 {
 		w.Write([]byte(white))
+		for x := 0; x < margin; x++ {
+			w.Write([]byte(empty))
+		}
+		w.Write([]byte(reset))
+
+		w.Write([]byte(white))
+		for x := 0; x < g.Width(); x++ {
+			if g.Get(x, y) && y+1 < g.Height() && g.Get(x, y+1) {
+				w.Write([]byte(full))
+			} else if g.Get(x, y) {
+				w.Write([]byte(uphalf))
+			} else if y+1 < g.Height() && g.Get(x, y+1) {
+				w.Write([]byte(lowhalf))
+			} else {
+				w.Write([]byte(empty))
+			}
+		}
+		w.Write([]byte(reset))
+
+		w.Write([]byte(white))
+		for x := 0; x < margin; x++ {
+			w.Write([]byte(empty))
+		}
+		w.Write([]byte(reset))
+
+		w.Write([]byte(newline))
 	}
-	w.Write([]byte(newline))
+
+	margin = 2
+	width = g.Width() + margin*2
+	for y := 0; y < margin/2; y++ {
+		w.Write([]byte(white))
+		for x := 0; x < width; x++ {
+			w.Write([]byte(empty))
+		}
+		w.Write([]byte(reset))
+		w.Write([]byte(newline))
+	}
 }
 
 // Return an image of the grid, with black blocks for true items and
